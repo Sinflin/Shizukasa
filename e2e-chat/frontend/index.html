@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>E2E Chat</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- Shown until the user "connects" (bare-bones stand-in for login, until Phase 2 auth) -->
+    <div id="connect-panel">
+      <h1>E2E Chat</h1>
+      <input id="user-id" type="text" placeholder="Your user ID" />
+      <button id="connect-btn">Connect</button>
+    </div>
+
+    <!-- Shown after connecting -->
+    <div id="chat-panel" style="display:none;">
+      <header id="chat-header">
+        <input id="recipient-id" type="text" placeholder="Chat with (user ID)" />
+      </header>
+
+      <div id="messages"></div>
+
+      <div id="input-bar">
+        <input id="message-input" type="text" placeholder="Type a message..." autocomplete="off" />
+        <button id="send-btn">Send</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

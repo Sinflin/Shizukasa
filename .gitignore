@@ -1,0 +1,34 @@
+# ─── Node / Bun (Shizukasa) ───────────────────────────────
+node_modules/
+dist/
+.output/
+.vite/
+.turbo/
+
+# ─── Environment / secrets ─────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ─── Python (e2e-chat backend) ─────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+
+# ─── Logs ───────────────────────────────────────────────────
+*.log
+npm-debug.log*
+
+# ─── OS / editor junk ───────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ─── Database files (if using SQLite locally) ───────────────
+*.db
+*.sqlite3
