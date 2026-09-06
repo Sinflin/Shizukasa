@@ -9,9 +9,11 @@ class ConnectionManager:
         
         #this dictionary will hold the active connections with user_id as key and WebSocket as value
 
-    async def connect(self, user_id: str, websocket: WebSocket): 
-        # This method is called when a new WebSocket connection is established. It accepts the connection and adds it to the active connections dictionary.
+    async def connect(self, user_id: str, websocket: WebSocket):
         await websocket.accept()
+        if user_id in self.active_connections:
+            old = self.active_connections[user_id]
+            await old.close()
         self.active_connections[user_id] = websocket
 
     def disconnect(self, user_id: str):

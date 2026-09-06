@@ -17,7 +17,18 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
     try:
         while True:
             raw = await websocket.receive_text()
-            data = json.loads(raw)  # expect {"to": "bob_id", "message": "hello"}
-            await manager.send_to_user(data["to"], f"{user_id}: {data['message']}")
+            try:
+                data = json.loads(raw)
+                to = data["to"]
+                message = data["message"]
+            except (json.JSONDecodeError, KeyError, TypeError):
+                await websocket.send_text(json.dumps({"error": "invalid message format"}))
+                continue
+            await manager.send_to_user(to, json.dumps({
+                "from": user_id,
+                "message": message,
+            }))
     except WebSocketDisconnect:
+        pass
+    finally:
         manager.disconnect(user_id)
