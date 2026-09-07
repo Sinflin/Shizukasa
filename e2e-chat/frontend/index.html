@@ -1,37 +1,174 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>E2E Chat</title>
-  <link rel="stylesheet" href="css/style.css" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shizukasa Chat</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;600&family=Zen+Kaku+Gothic+New:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <div id="app">
 
-    <!-- Shown until the user "connects" (bare-bones stand-in for login, until Phase 2 auth) -->
-    <div id="connect-panel">
-      <h1>E2E Chat</h1>
-      <input id="user-id" type="text" placeholder="Your user ID" />
-      <button id="connect-btn">Connect</button>
-    </div>
+<!--
+  INTEGRATION NOTES for wiring up js/main.js, js/ui.js, js/websocket.js:
 
-    <!-- Shown after connecting -->
-    <div id="chat-panel" style="display:none;">
-      <header id="chat-header">
-        <input id="recipient-id" type="text" placeholder="Chat with (user ID)" />
-      </header>
+  Sidebar
+    #conversation-list          <ul> — holds .conversation-item <li> entries
+    .conversation-item          data-user-id="<peer id>" on each entry, click = open that thread
+    #search-conversations       text input, filters .conversation-item by name
 
-      <div id="messages"></div>
+  Thread header
+    #active-contact-name        peer's display name
+    #active-contact-status      "Online" / "Offline" / "Last seen ..." text
+    #connection-dot             toggle .online / .offline class from websocket.js's
+                                 onopen/onclose/reconnect handlers
 
-      <div id="input-bar">
-        <input id="message-input" type="text" placeholder="Type a message..." autocomplete="off" />
-        <button id="send-btn">Send</button>
+  Message thread
+    #message-thread             scrollable container — ui.js appends .message.incoming /
+                                 .message.outgoing <div>s here (see the commented template below)
+    #empty-state                shown when #message-thread has no children; hide on first append
+
+  Composer
+    #message-form               submit = send current #message-input value via websocket.js
+    #message-input              text input
+    #send-btn                   submit button (also fires on Enter via form submit)
+
+  Since Phase 1 has no auth/contacts service yet, the sidebar below is static placeholder
+  markup (mirrors the mockup) — swap #conversation-list's children for a real render loop
+  once the user/contacts API exists. The single active thread is wired to whichever
+  .conversation-item is marked .active.
+-->
+
+<div class="app-shell">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-head">
+      <div class="brand">
+        <span class="brand-en">Shizukasa</span>
+        <span class="brand-jp">静かな会話</span>
       </div>
     </div>
 
-  </div>
+    <div class="search-wrap">
+      <svg class="icon-search" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="11" cy="11" r="7"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+      <input type="text" id="search-conversations" placeholder="Search conversations…" autocomplete="off">
+    </div>
 
-  <script type="module" src="js/main.js"></script>
+    <ul class="conversation-list" id="conversation-list">
+      <!-- Placeholder entries — replace with a render loop once contacts/auth exist -->
+      <li class="conversation-item active" data-user-id="aarav">
+        <span class="avatar" aria-hidden="true"></span>
+        <span class="convo-main">
+          <span class="convo-top">
+            <span class="convo-name">Aarav</span>
+            <span class="convo-time">16:49</span>
+          </span>
+          <span class="convo-preview">just working on the project</span>
+        </span>
+      </li>
+      <li class="conversation-item" data-user-id="meera">
+        <span class="avatar" aria-hidden="true"></span>
+        <span class="convo-main">
+          <span class="convo-top">
+            <span class="convo-name">Meera</span>
+            <span class="convo-time">12:21</span>
+          </span>
+          <span class="convo-preview">sent a photo</span>
+        </span>
+      </li>
+      <li class="conversation-item" data-user-id="dev">
+        <span class="avatar" aria-hidden="true"></span>
+        <span class="convo-main">
+          <span class="convo-top">
+            <span class="convo-name">Dev</span>
+            <span class="convo-time">Yesterday</span>
+          </span>
+          <span class="convo-preview">hmm makes sense</span>
+        </span>
+      </li>
+      <li class="conversation-item" data-user-id="tanish">
+        <span class="avatar" aria-hidden="true"></span>
+        <span class="convo-main">
+          <span class="convo-top">
+            <span class="convo-name">Tanish</span>
+            <span class="convo-time">Mon</span>
+          </span>
+          <span class="convo-preview">let's catch up soon</span>
+        </span>
+      </li>
+    </ul>
+
+    <div class="sidebar-foot">
+      <span class="foot-line">Good conversations, better people.</span>
+    </div>
+  </aside>
+
+  <!-- ============ THREAD ============ -->
+  <main class="thread-panel">
+
+    <header class="thread-header">
+      <button class="back-btn" id="back-to-sidebar" aria-label="Back to conversations">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>
+      </button>
+
+      <span class="avatar avatar-lg" aria-hidden="true"></span>
+
+      <span class="header-id">
+        <span class="header-name" id="active-contact-name">Aarav</span>
+        <span class="header-status">
+          <span class="dot" id="connection-dot" aria-hidden="true"></span>
+          <span id="active-contact-status">Online</span>
+        </span>
+      </span>
+
+      <span class="header-jp" aria-hidden="true">同じ空の下で、<br>どこにいても。</span>
+    </header>
+
+    <div class="thread-body" id="message-thread">
+      <div class="empty-state" id="empty-state">
+        <span class="empty-jp">ただ、話そう。</span>
+        <span class="empty-en">Just start talking.</span>
+      </div>
+
+      <!--
+        Message template for ui.js to clone/build, one <div> per message:
+
+        <div class="message incoming">
+          <span class="bubble">hey</span>
+          <span class="meta">9:41 PM</span>
+        </div>
+
+        <div class="message outgoing">
+          <span class="bubble">what's up?</span>
+          <span class="meta">9:41 PM <svg class="tick">…</svg></span>
+        </div>
+      -->
+    </div>
+
+    <form class="composer" id="message-form" autocomplete="off">
+      <button type="button" class="attach-btn" aria-label="Attach">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      </button>
+      <input type="text" id="message-input" placeholder="Message securely…" aria-label="Message">
+      <button type="submit" class="send-btn" id="send-btn" aria-label="Send message">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+      </button>
+    </form>
+
+  </main>
+
+</div>
+
+<script src="js/websocket.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
 </body>
 </html>
