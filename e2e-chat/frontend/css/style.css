@@ -1,7 +1,6 @@
 /* ============================================================
    Shizukasa Chat — tokens
    ============================================================ */
-
 :root {
   --paper:        #F3EEE4;   /* main canvas */
   --paper-dim:    #ECE5D6;   /* sidebar wash, slightly deeper */
@@ -23,12 +22,9 @@
   --radius-md: 6px;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
-html,
-body {
+html, body {
   height: 100%;
   margin: 0;
 }
@@ -59,22 +55,18 @@ svg {
   stroke-linejoin: round;
 }
 
-
 /* ============================================================
    Shell / layout
    ============================================================ */
-
 .app-shell {
   height: 100vh;
   display: grid;
   grid-template-columns: 300px 1fr;
 }
 
-
 /* ============================================================
    Sidebar
    ============================================================ */
-
 .sidebar {
   background: var(--paper-dim);
   border-right: 1px solid var(--line);
@@ -177,18 +169,16 @@ svg {
   height: 42px;
   min-width: 42px;
   border-radius: 50%;
-
   background:
     radial-gradient(circle at 35% 30%, #B9C4B2, transparent 55%),
     linear-gradient(160deg, #8E9A88, #5C6B58);
-
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
 }
 
 .avatar-lg {
-  width: 38px;
-  height: 38px;
-  min-width: 38px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
 }
 
 .convo-main {
@@ -237,11 +227,9 @@ svg {
   color: var(--ink-soft);
 }
 
-
 /* ============================================================
    Thread panel
    ============================================================ */
-
 .thread-panel {
   display: flex;
   flex-direction: column;
@@ -307,11 +295,6 @@ svg {
   white-space: nowrap;
 }
 
-
-/* ============================================================
-   Chat background
-   ============================================================ */
-
 .thread-body {
   flex: 1;
   overflow-y: auto;
@@ -320,17 +303,29 @@ svg {
   flex-direction: column;
   gap: 10px;
 
-  background-image: url("../assets/chat-bg.png") !important;
-  background-size: cover !important;
-  background-position: center !important;
-  background-repeat: no-repeat !important;
+  background-color: var(--paper);
+  background-image:
+    radial-gradient(ellipse at top right, rgba(0,0,0,0.02), transparent 45%),
+    url("../assets/branch.svg"),
+    url("../assets/mountains.svg");
+  background-repeat: no-repeat, no-repeat, no-repeat;
+  background-position: top right, top -20px left -30px, bottom -30px right -60px;
+  background-size: auto, 260px auto, 560px auto;
+  /* 'scroll' (the default) pins the art to the panel itself rather than the
+     message content, so it reads as wallpaper instead of drifting with each
+     new message — swap for 'local' if you'd rather it move with the thread. */
+  background-attachment: scroll, scroll, scroll;
 }
+
+/* To swap in real artwork later (e.g. smoke.jpg / envelope.jpg from the
+   Shizukasa repo) instead of the generated SVGs, just replace the two
+   url(...) lines above — everything else (position/size/opacity handling)
+   can stay the same as long as the replacement has transparent edges. */
 
 .empty-state {
   margin: auto;
   text-align: center;
   color: var(--ink-faint);
-
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -347,11 +342,7 @@ svg {
   letter-spacing: 0.02em;
 }
 
-
-/* ============================================================
-   Message bubbles — appended by ui.js
-   ============================================================ */
-
+/* Message bubbles — appended by ui.js */
 .message {
   display: flex;
   flex-direction: column;
@@ -391,7 +382,6 @@ svg {
   margin-top: 4px;
   font-size: 10.5px;
   color: var(--ink-faint);
-
   display: flex;
   align-items: center;
   gap: 4px;
@@ -408,11 +398,9 @@ svg {
   stroke: var(--accent);
 }
 
-
 /* ============================================================
    Composer
    ============================================================ */
-
 .composer {
   display: flex;
   align-items: center;
@@ -463,11 +451,9 @@ svg {
   border: none;
   background: var(--accent);
   color: var(--paper);
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   transition: transform 0.1s ease;
 }
 
@@ -484,35 +470,28 @@ svg {
   transform: scale(0.96);
 }
 
-
 /* ============================================================
    Focus visibility (accessibility floor)
    ============================================================ */
-
 button:focus-visible,
 input:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-
 /* ============================================================
    Reduced motion
    ============================================================ */
-
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
   }
 }
 
-
 /* ============================================================
    Responsive — collapse to single panel under 760px
    ============================================================ */
-
 @media (max-width: 760px) {
-
   .app-shell {
     grid-template-columns: 1fr;
   }

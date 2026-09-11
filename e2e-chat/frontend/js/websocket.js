@@ -2,20 +2,34 @@
 // No UI logic lives here — this file only talks to the network.
 
 export class ChatSocket {
-  constructor(userId, onMessage) {
+  constructor(userId, onMessage, onStatusChange = null) {
     this.userId = userId;
     this.onMessage = onMessage;
+    this.onStatusChange = onStatusChange;
     this.socket = null;
     this.reconnectAttempts = 0;
   }
 
   connect() {
     const protocol = location.protocol === "https:" ? "wss" : "ws";
-    this.socket = new WebSocket(`${protocol}://${location.host}/ws/${this.userId}`);
+    let host = location.host;
+    if (!host || location.protocol === "file:" || (location.port && location.port !== "8000")) {
+      const hostname = location.hostname || "localhost";
+      host = `${hostname}:8000`;
+    }
+
+    if (this.onStatusChange) {
+      this.onStatusChange("connecting");
+    }
+
+    this.socket = new WebSocket(`${protocol}://${host}/ws/${this.userId}`);
 
     this.socket.onopen = () => {
       this.reconnectAttempts = 0;
       console.log("[websocket] connected as", this.userId);
+      if (this.onStatusChange) {
+        this.onStatusChange("online");
+      }
     };
 
     this.socket.onmessage = (event) => {
@@ -24,6 +38,9 @@ export class ChatSocket {
 
     this.socket.onclose = () => {
       console.log("[websocket] disconnected — retrying...");
+      if (this.onStatusChange) {
+        this.onStatusChange("offline");
+      }
       this.scheduleReconnect();
     };
 
