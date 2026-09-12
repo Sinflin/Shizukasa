@@ -1,4 +1,4 @@
-from sqlachemy import Column, String, DateTime, ForeignKey, UniqueConstraint, func
+from sqlalchemy import Column, String, DateTime, ForeignKey, UniqueConstraint, func
 from app.database import Base
 
 class Contact(Base):
