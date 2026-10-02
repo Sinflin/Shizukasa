@@ -5,3 +5,4 @@ pydantic
 pydantic-settings
 python-jose[cryptography]
 python-multipart
+python-dotenv

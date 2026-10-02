@@ -8,6 +8,6 @@ class ContactResponse(BaseModel):
     contact_phone_number: str
     added_at: datetime
 
-    class config:
+    class Config:
         from_attributes = True
         

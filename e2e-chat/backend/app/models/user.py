@@ -1,4 +1,4 @@
-from sqlachemy import Column, String, DateTime, func
+from sqlalchemy import Column, String, DateTime, func
 from app.database import Base
 
 class User(Base):

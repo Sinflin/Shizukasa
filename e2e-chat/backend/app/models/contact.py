@@ -3,7 +3,7 @@ from app.database import Base
 
 class Contact(Base):
     __tablename__ = "contacts"
-    __table_args__ = (UniqueConstraint("user_phone_number", "contact_phone_", name = "uq_owner_contact"),)
+    __table_args__ = (UniqueConstraint("owner_phone", "contact_phone", name="uq_owner_contact"),)
 
     id = Column(String, primary_key=True)  # set as f"{owner}:{contact}" at insert time
     owner_phone = Column(String, ForeignKey("users.phone_number"), nullable=False, index=True)
