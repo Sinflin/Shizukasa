@@ -1,8 +1,3 @@
-
-# Project Title
-
-A brief description of what this project does and who it's for
-
 # Shizukasa (静かな会話) — E2E Encrypted Chat App
 
 A security-focused, one-on-one encrypted messaging web app with a Japanese
@@ -20,11 +15,13 @@ sync) at a much smaller scale.
 ## Status
 
 **Phase 1 — Bare-bones WebSocket messaging: ✅ Complete**
-**Phase 2 — Auth & contacts: 🔜 Not started**
+**Phase 2 — Auth & contacts: 🟡 In progress**
 
-The app currently supports live 1-on-1 text messaging over WebSockets between
-two connected clients. There is no persistence, authentication, or encryption
-yet — messages only exist for the duration of the connection.
+The app supports live 1-on-1 text messaging over WebSockets between two
+connected clients. Phase 2 backend is implemented — OTP-based phone-number
+authentication, JWT access/refresh tokens, and contact management endpoints
+are functional. The WebSocket endpoint is not yet gated behind auth (planned
+for Phase 2b).
 
 ---
 
@@ -46,6 +43,10 @@ yet — messages only exist for the duration of the connection.
 - 2-panel chat UI (sidebar + thread) with a warm paper-and-ink-brown theme
 - Exponential-backoff auto-reconnect on the client
 - Mobile-responsive layout (collapses to single panel under 760px)
+- OTP-based phone-number authentication (`/auth/request-otp`, `/auth/verify-otp`)
+- JWT access & refresh token flow (`/auth/refresh`)
+- Contact management — add and list contacts (`/contacts/add`, `/contacts/`)
+- SQLite database with auto-created tables (Users, OTP requests, Contacts)
 
 ---
 
@@ -54,12 +55,28 @@ yet — messages only exist for the duration of the connection.
 ### Backend
 - **Framework:** Python, FastAPI
 - **Transport:** WebSockets (`fastapi.WebSocket`)
+- **Database:** SQLite via SQLAlchemy (auto-created on first run)
+- **Auth:** OTP → JWT (access + refresh tokens, `python-jose`)
 - **Structure:**
-  - `main.py` — app entrypoint, defines the `/ws/{user_id}` endpoint
+  - `app/main.py` — app entrypoint, mounts routers, defines `/ws/{user_id}`
+  - `app/config.py` — centralised settings via `pydantic-settings` (reads `.env`)
+  - `app/database.py` — SQLAlchemy engine, session factory, `Base`
+  - `app/dependencies.py` — `get_current_user` dependency (Bearer token → User)
+  - `app/models/` — SQLAlchemy models
+    - `user.py` — `User` (keyed by phone number)
+    - `otp.py` — `OTPRequest` (6-digit codes with expiry)
+    - `contact.py` — `Contact` (owner ↔ contact, unique constraint)
+  - `app/schemas/` — Pydantic request/response models
+    - `auth.py` — OTP request/response, token response, refresh request
+    - `contact.py` — add-contact request, contact response
+  - `app/services/` — business logic
+    - `jwt_handler.py` — create & decode access/refresh JWTs
+    - `otp_service.py` — generate OTP, create DB record, verify OTP
+  - `app/routers/` — API route handlers
+    - `auth.py` — `/auth/request-otp`, `/auth/verify-otp`, `/auth/refresh`
+    - `contact.py` — `/contacts/add`, `/contacts/`
   - `app/websocket/connection_manager.py` — tracks active connections,
     handles connect/disconnect and targeted message delivery
-- **Planned additions:** SQLAlchemy models, Pydantic schemas, JWT auth,
-  key management endpoints
 
 ### Frontend
 - **Stack:** Vanilla HTML/CSS/JS (no framework)
@@ -81,17 +98,30 @@ Client A ─(WS: {to, message})→ FastAPI /ws/{user_id}
                           Client B ←(WS: {from, message})
 ```
 
+### Auth flow (Phase 2)
+```
+Client ──POST /auth/request-otp──→ Server (generates 6-digit OTP, stores in DB)
+Client ──POST /auth/verify-otp───→ Server (validates OTP, creates user if new,
+                                           returns access + refresh JWT)
+Client ──POST /auth/refresh──────→ Server (exchanges refresh token for new pair)
+Client ──GET  /contacts/ ────────→ Server (Bearer token required)
+```
+
 ---
 
 ## Getting Started
 
 ### Backend
 ```bash
+cd e2e-chat
 pip install -r requirements.txt
-uvicorn main:app --reload
+cd backend
+uvicorn app.main:app --reload
 ```
-Server runs at `http://localhost:8000`. WebSocket endpoint:
-`ws://localhost:8000/ws/{user_id}`.
+Server runs at `http://localhost:8000`.
+
+- API docs: `http://localhost:8000/docs`
+- WebSocket endpoint: `ws://localhost:8000/ws/{user_id}`
 
 ### Frontend
 Open `frontend/index.html` in a browser (or serve it statically). On load,
@@ -106,7 +136,8 @@ sidebar to select which conversation you're sending to.
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Bare-bones WebSocket send/receive | ✅ Done |
-| 2 | JWT authentication + contact management | 🔜 Next |
+| 2a | OTP auth + JWT tokens + contact management | ✅ Done |
+| 2b | Gate WebSocket endpoint behind auth | 🔜 Next |
 | 3 | End-to-end encryption (HKDF-based ratchet, forward secrecy) | Planned |
 | 4 | Reliable delivery + minimized server-side metadata logging | Planned |
 | 5 | Presence (online/offline, last seen) | Planned |
@@ -114,10 +145,12 @@ sidebar to select which conversation you're sending to.
 | 7 | Scaling considerations | Deprioritized |
 
 **Near-term to-dos:**
+- Gate WebSocket connections with a valid access token
+- Wire the frontend to the new auth endpoints
 - Finalize the cherry-blossom ink-wash SVG asset for the thread background
-- Decide on phone-number vs. username/passphrase-based identity for auth
 - Client-side key storage via IndexedDB with non-extractable WebCrypto keys,
   backed by strict CSP headers
+- Replace dev-only OTP echo with a real SMS provider (Twilio, etc.)
 
 ---
 
@@ -130,12 +163,14 @@ sidebar to select which conversation you're sending to.
   persistent-server model with minimized metadata retention.
 - `send_to_user()` deliberately replaces an earlier broadcast-based approach —
   broadcasting is the wrong pattern for a strictly 1-on-1 app.
+- OTP codes are currently returned in the API response (`otp_dev_only`) for
+  development convenience — this field must be removed before production.
 
 ---
 
 ## Tech Stack
 
-- **Backend:** Python, FastAPI, WebSockets, SQLAlchemy, Pydantic, Uvicorn
+- **Backend:** Python, FastAPI, WebSockets, SQLAlchemy, Pydantic, python-jose, Uvicorn
 - **Frontend:** HTML, CSS, JavaScript (no framework), Google Fonts
 - **Security (planned):** Web Crypto API, HKDF ratchet, IndexedDB, CSP
 
