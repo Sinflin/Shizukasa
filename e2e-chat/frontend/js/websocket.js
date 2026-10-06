@@ -2,12 +2,14 @@
 // No UI logic lives here — this file only talks to the network.
 
 export class ChatSocket {
-  constructor(userId, onMessage, onStatusChange = null) {
-    this.userId = userId;
+  constructor(getAccessToken, onMessage, onStatusChange = null, onAuthFailure = null) {
+    this.getAccessToken = getAccessToken;
     this.onMessage = onMessage;
     this.onStatusChange = onStatusChange;
+    this.onAuthFailure = onAuthFailure;
     this.socket = null;
     this.reconnectAttempts = 0;
+    this.authenticated = false;
   }
 
   connect() {
@@ -18,29 +20,43 @@ export class ChatSocket {
       host = `${hostname}:8000`;
     }
 
-    if (this.onStatusChange) {
-      this.onStatusChange("connecting");
-    }
+    if (this.onStatusChange) this.onStatusChange("connecting");
+    this.authenticated = false;
 
-    this.socket = new WebSocket(`${protocol}://${host}/ws/${this.userId}`);
+    this.socket = new WebSocket(`${protocol}://${host}/ws`);
 
     this.socket.onopen = () => {
-      this.reconnectAttempts = 0;
-      console.log("[websocket] connected as", this.userId);
-      if (this.onStatusChange) {
-        this.onStatusChange("online");
-      }
+      // First message must be the token — server won't accept chat
+      // traffic until this succeeds.
+      this.socket.send(JSON.stringify({ token: this.getAccessToken() }));
     };
 
     this.socket.onmessage = (event) => {
+      if (!this.authenticated) {
+        let data;
+        try {
+          data = JSON.parse(event.data);
+        } catch {
+          return;
+        }
+        if (data.error) {
+          console.error("[websocket] auth failed:", data.error);
+          if (this.onAuthFailure) this.onAuthFailure(data.error);
+          this.socket.close();
+          return;
+        }
+        // {"message": "authenticated"} — the handshake succeeded.
+        this.authenticated = true;
+        this.reconnectAttempts = 0;
+        if (this.onStatusChange) this.onStatusChange("online");
+        return;
+      }
+
       this.onMessage(event.data);
     };
 
     this.socket.onclose = () => {
-      console.log("[websocket] disconnected — retrying...");
-      if (this.onStatusChange) {
-        this.onStatusChange("offline");
-      }
+      if (this.onStatusChange) this.onStatusChange("offline");
       this.scheduleReconnect();
     };
 
@@ -49,19 +65,17 @@ export class ChatSocket {
     };
   }
 
-  // Backoff-based reconnect, matching the "Connection Recovery" step from the doc
   scheduleReconnect() {
     const delay = Math.min(1000 * 2 ** this.reconnectAttempts, 10000);
     this.reconnectAttempts += 1;
     setTimeout(() => this.connect(), delay);
   }
 
-  // Sends { to, message } — matches the backend's expected JSON payload
   send(to, message) {
-    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+    if (this.socket && this.socket.readyState === WebSocket.OPEN && this.authenticated) {
       this.socket.send(JSON.stringify({ to, message }));
     } else {
-      console.warn("[websocket] cannot send — socket not open");
+      console.warn("[websocket] cannot send — socket not authenticated/open");
     }
   }
 }

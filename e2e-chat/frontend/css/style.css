@@ -523,3 +523,93 @@ input:focus-visible {
     max-width: 82%;
   }
 }
+/* ============================================================
+   Login overlay
+   ============================================================ */
+.login-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--paper);
+}
+
+.login-overlay.hidden {
+  display: none;
+}
+
+.login-card {
+  width: min(360px, 90vw);
+  padding: 36px 32px;
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.login-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.login-form.hidden {
+  display: none;
+}
+
+.login-form label {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
+.login-form input {
+  padding: 11px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 14px;
+  outline: none;
+}
+
+.login-form input:focus {
+  border-color: var(--accent);
+}
+
+.login-btn {
+  padding: 11px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--paper);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.login-link {
+  background: none;
+  border: none;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  text-decoration: underline;
+  padding: 2px;
+}
+
+.login-error {
+  color: #a35050;
+  font-size: 12.5px;
+  min-height: 1em;
+  margin: 0;
+}
+
+.login-dev-hint {
+  font-size: 12px;
+  color: var(--ink-faint);
+  margin: 0;
+}

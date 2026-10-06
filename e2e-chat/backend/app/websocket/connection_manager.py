@@ -11,21 +11,19 @@ class ConnectionManager:
         
         #this dictionary will hold the active connections with user_id as key and WebSocket as value
 
-    async def register(self, user_id: str,websocket : WebSocket):
-        #This method registers a new WebSocket connection for a user. 
-        #It adds the connection to the active connections dictionary and accepts the WebSocket connection.
+    async def register(self, user_id: str, websocket: WebSocket):
         """Registers an already-accepted, already-authenticated socket.
-        Call websocket.accept() yourself before this — accept has to
+        websocket.accept() must be called before this — accept has to
         happen first so the client can send its auth message at all."""
         if user_id in self.active_connections:
+            # Close the stale connection from a previous session.
             old = self.active_connections[user_id]
-            await old.close()
-            #this code checks if the user_id is already present in the active connections dictionary. 
-            # If it is, it retrieves the old WebSocket connection and closes it to ensure that only one connection per user is maintained.
-        else:
-            await websocket.accept()
-            self.active_connections[user_id] = websocket
-        #This code accepts the new WebSocket connection and adds it to the active connections dictionary with the user_id as the key.
+            try:
+                await old.close()
+            except Exception:
+                pass  # already closed — ignore
+        # Always store the new socket (whether replacing or new user).
+        self.active_connections[user_id] = websocket
     def disconnect(self, user_id: str):
         # This method is called when a WebSocket connection is closed. It removes the connection from the active connections dictionary.
         self.active_connections.pop(user_id, None)

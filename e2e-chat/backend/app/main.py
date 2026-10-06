@@ -1,7 +1,7 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 import json
 from jose import JWTError, jwt
-from sqlalchemy import true
 # WebSocket is a protocol that allows for full-duplex communication between a client and a server. 
 #It is commonly used in real-time applications such as chat applications, online gaming, and collaborative tools.
 from app.database import Base, engine
@@ -20,6 +20,19 @@ app = FastAPI(
     description="End to End Chatting Website using WebSocket and FastAPI.",
 )
 
+# Allow the frontend (file:// origin or a dev server) to reach the API.
+# We use allow_credentials=False because auth is done via the
+# Authorization: Bearer header, NOT cookies — so credentials=True
+# is not needed and would conflict with allow_origins=["*"].
+# Tighten allowed_origins before deploying to production.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(auth.router)
 app.include_router(contact.router)
 
@@ -36,7 +49,7 @@ async def _authenticate_socket(websocket: WebSocket) -> str | None:
     Returns the verified phone_number (JWT sub) on success, or closes
     the connection and returns None on failure."""
     try:
-        raw = await websocket.recieve_text()
+        raw = await websocket.receive_text()
         data = json.loads(raw)
         token = data['token']
     except (json.JSONDecodeError, KeyError, TypeError):
@@ -72,7 +85,7 @@ async def websocket_endpoint(websocket: WebSocket):
     #It adds the connection to the active connections dictionary in the ConnectionManager class.
     try:
         while True:
-            raw = await websocket.recieve_text()
+            raw = await websocket.receive_text()
             try:
                 data = json.loads(raw)
                 to = data['to']

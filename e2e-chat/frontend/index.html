@@ -110,7 +110,33 @@
       <span class="foot-line">Good conversations, better people.</span>
     </div>
   </aside>
+<!-- ============ LOGIN OVERLAY ============ -->
+<div class="login-overlay" id="login-overlay">
+  <div class="login-card">
+    <div class="brand">
+      <span class="brand-en">Shizukasa</span>
+      <span class="brand-jp">静かな会話</span>
+    </div>
 
+    <form id="phone-form" class="login-form">
+      <label for="phone-input">Phone number</label>
+      <input type="tel" id="phone-input" placeholder="+1 555 555 5555" autocomplete="tel" required>
+      <button type="submit" class="login-btn">Send code</button>
+      <p class="login-error" id="phone-error"></p>
+    </form>
+
+    <form id="otp-form" class="login-form hidden">
+      <label for="otp-input">Enter the 6-digit code</label>
+      <input type="text" id="otp-input" inputmode="numeric" maxlength="6" autocomplete="one-time-code" required>
+      <button type="submit" class="login-btn">Verify</button>
+      <button type="button" class="login-link" id="otp-back-btn">Use a different number</button>
+      <p class="login-error" id="otp-error"></p>
+      <!-- DEV ONLY — shows the OTP since no SMS provider is wired in yet.
+        Delete this element and the code that fills it before shipping. -->
+      <p class="login-dev-hint" id="otp-dev-hint"></p>
+    </form>
+  </div>
+</div>
   <!-- ============ THREAD ============ -->
   <main class="thread-panel">
 
