@@ -6,23 +6,24 @@ WebSocket architecture, and end-to-end encryption — not a WhatsApp clone, but
 inspired by the same core problems (delivery guarantees, presence, multi-device
 sync) at a much smaller scale.
 
-> This is the chat application itself. The separate marketing/landing site for
-> Shizukasa lives in its own repo ([Sinflin/Shizukasa](https://github.com/Sinflin/Shizukasa))
-> and is not part of this codebase.
+> The separate marketing/landing site for Shizukasa also lives in this
+> repository under `shizukasa-website/`. It is a standalone TanStack Start +
+> React + Tailwind CSS app with its own build toolchain.
 
 ---
 
 ## Status
 
 **Phase 1 — Bare-bones WebSocket messaging: ✅ Complete**
-**Phase 2 — Auth & contacts: 🟡 In progress**
+**Phase 2 — Auth & contacts: ✅ Complete**
 
 The app supports live 1-on-1 text messaging over WebSockets between two
-connected clients. Phase 2 backend is scaffolded — OTP-based phone-number
-authentication, JWT access/refresh tokens, and contact management endpoints
-are implemented. The OTP service is currently mocked (returns the code
-directly in the API response) pending a real SMS provider. The WebSocket
-endpoint is not yet gated behind auth (planned for Phase 2b).
+authenticated clients. OTP-based phone-number authentication, JWT
+access/refresh tokens, contact management endpoints, and an auth-gated
+WebSocket handshake are all implemented and wired end-to-end. The frontend
+presents a login overlay (phone → OTP → chat) and automatically reconnects
+with the stored token on page refresh. The OTP service is currently mocked
+(returns the code directly in the API response) pending a real SMS provider.
 
 ---
 
@@ -37,64 +38,102 @@ endpoint is not yet gated behind auth (planned for Phase 2b).
 
 ## Features (currently working)
 
-- WebSocket connection per user (`/ws/{user_id}`)
+- **Auth-gated WebSocket** — the `/ws` endpoint accepts connections, then
+  expects a `{"token": "..."}` JWT as the first message; the server verifies
+  the token and closes the socket (`4001`) on failure
 - Targeted 1-on-1 delivery via `send_to_user()` (not broadcast)
 - Malformed JSON handling without dropping the connection
 - Stale-socket cleanup on duplicate connections from the same user
 - 2-panel chat UI (sidebar + thread) with a warm paper-and-ink-brown theme
-- Exponential-backoff auto-reconnect on the client
+- Exponential-backoff auto-reconnect on the client (skips reconnect loop on
+  auth failure to avoid hammering the server)
 - Mobile-responsive layout (collapses to single panel under 760px)
 - OTP-based phone-number authentication (`/auth/request-otp`, `/auth/verify-otp`)
 - JWT access & refresh token flow (`/auth/refresh`)
+- Frontend login overlay with phone-number → OTP code → chat transition
+- Auto-login on page refresh when a session token already exists in
+  `sessionStorage`
+- `authedFetch()` helper that auto-refreshes expired access tokens on 401
 - Contact management — add and list contacts (`/contacts/add`, `/contacts/`)
 - SQLite database with auto-created tables (Users, OTP requests, Contacts)
+- Ink-wash visual assets: cherry-blossom chat background (`Chat-bg.png`),
+  branch and mountains SVG motifs
 
 ---
 
 ## Architecture
 
 ### Backend
+
 - **Framework:** Python, FastAPI
 - **Transport:** WebSockets (`fastapi.WebSocket`)
 - **Database:** SQLite via SQLAlchemy (auto-created on first run)
 - **Auth:** phone number + OTP (WhatsApp-style) → JWT (access + refresh tokens)
 - **Structure:**
-  - `app/main.py` — app entrypoint, mounts routers, defines `/ws/{user_id}`
+  - `app/main.py` — app entrypoint, mounts routers, defines `/ws` endpoint
+    with in-line `_authenticate_socket()` handshake
   - `app/config.py` — centralised settings via `pydantic-settings`
   - `app/database.py` — SQLAlchemy engine, session factory, `Base`
   - `app/dependencies.py` — `get_current_user` dependency (Bearer token → User)
   - `app/models/` — `User` (keyed by phone number), `OTPRequest`, `Contact`
-    (owner ↔ contact, unique constraint)
-  - `app/schemas/` — Pydantic request/response models for auth and contacts
+    (owner ↔ contact, unique constraint), `Message`
+  - `app/schemas/` — Pydantic request/response models for auth, contacts,
+    messages, and users
   - `app/services/` — `jwt_handler.py` (create/decode access & refresh JWTs),
     `otp_service.py` (generate OTP, verify, mark used)
-  - `app/routers/` — `auth.py`, `contact.py`
+  - `app/routers/` — `auth.py`, `contact.py`, `chat.py`, `users.py`
   - `app/websocket/connection_manager.py` — tracks active connections,
-    handles connect/disconnect and targeted message delivery
+    handles register/disconnect and targeted message delivery
+    (`chat_socket.py` also present for future extraction)
 - **Identity model:** phone number is the unified key across JWT `sub`
-  claims, WebSocket `user_id` routing, and contact relationships
+  claims, WebSocket identity (resolved from the token during the handshake),
+  and contact relationships
 
 ### Frontend
+
 - **Stack:** Vanilla HTML/CSS/JS (no framework)
 - **Structure:**
-  - `frontend/index.html` — shell markup (sidebar + thread panel + composer)
+  - `frontend/index.html` — shell markup (login overlay + sidebar + thread
+    panel + composer)
   - `frontend/css/style.css` — design tokens, layout, responsive rules
-  - `frontend/js/main.js` — orchestrator; wires DOM events to the socket layer
+  - `frontend/js/auth.js` — REST calls to `/auth/*`, token storage
+    (`sessionStorage`), `authedFetch()` with silent 401-refresh
+  - `frontend/js/main.js` — orchestrator; wires DOM events to the socket and
+    auth layers, manages `messageStore`, drives the login flow
   - `frontend/js/ui.js` — pure DOM rendering, no network logic
-  - `frontend/js/websocket.js` — connection lifecycle, reconnection backoff
+  - `frontend/js/websocket.js` — `ChatSocket` class: connection lifecycle,
+    token-first handshake, reconnection backoff, auth-failure callback
+  - `frontend/assets/` — `Chat-bg.png` (ink-wash background), `branch.svg`,
+    `mountains.svg`
 - **Fonts:** `Shippori Mincho` (display) + `Zen Kaku Gothic New` (body)
 
+### Landing / Marketing Site (`shizukasa-website/`)
+
+- **Stack:** TanStack Start, React, TypeScript, Tailwind CSS v4, shadcn/ui
+  (Radix primitives), Vite, Bun
+- Single-page design with ink-wash hero, CTA, and contact footer
+- Reveal-on-scroll animations via `IntersectionObserver`
+- Live JST clock in the navigation bar
+
 ### Message flow (current)
+
 ```
-Client A ─(WS: {to, message})→ FastAPI /ws/{user_id}
-                                     │
-                          ConnectionManager.send_to_user(to, payload)
-                                     │
-                                     ▼
-                          Client B ←(WS: {from, message})
+Client A ──(WS: {token: "..."})──→ FastAPI /ws
+                                       │
+                            _authenticate_socket() → decode JWT → user_id
+                                       │
+                            ConnectionManager.register(user_id, ws)
+                                       │
+Client A ──(WS: {to, message})───→ FastAPI /ws
+                                       │
+                            ConnectionManager.send_to_user(to, payload)
+                                       │
+                                       ▼
+                            Client B ←(WS: {from, message})
 ```
 
-### Auth flow (Phase 2)
+### Auth flow
+
 ```
 Client ──POST /auth/request-otp──→ Server (generates OTP, stores in DB)
 Client ──POST /auth/verify-otp───→ Server (validates OTP, creates user if new,
@@ -108,46 +147,61 @@ Client ──GET  /contacts/ ────────→ Server (Bearer token re
 ## Getting Started
 
 ### Backend
+
 ```bash
 cd e2e-chat
 pip install -r requirements.txt
 cd backend
 uvicorn app.main:app --reload
 ```
+
 Server runs at `http://localhost:8000`.
 
 - API docs: `http://localhost:8000/docs`
-- WebSocket endpoint: `ws://localhost:8000/ws/{user_id}`
+- WebSocket endpoint: `ws://localhost:8000/ws`
+  (first message after connect must be `{"token": "<access_token>"}`)
 
 ### Frontend
-Open `frontend/index.html` in a browser (or serve it statically). On load,
-you'll be prompted for a test `user_id` — open two browser windows/tabs with
-different IDs (e.g. `alice` and `bob`) to test 1-on-1 delivery, and use the
-sidebar to select which conversation you're sending to.
+
+Open `frontend/index.html` in a browser (or serve it statically). You will be
+presented with a login overlay — enter a phone number, receive a dev-only OTP
+code displayed on screen, verify it, and you're into the chat UI. Open two
+browser windows/tabs with different phone numbers (e.g. `+1111111111` and
+`+2222222222`) to test 1-on-1 delivery.
+
+### Landing Site
+
+```bash
+cd shizukasa-website
+bun install          # or npm install
+bun run dev          # or npm run dev
+```
 
 ---
 
 ## Roadmap
 
-| Phase | Scope | Status |
-|---|---|---|
-| 1 | Bare-bones WebSocket send/receive | ✅ Done |
-| 2a | OTP auth + JWT tokens + contact management | ✅ Done |
-| 2b | Gate WebSocket endpoint behind auth | 🔜 Next |
-| 3 | End-to-end encryption (HKDF-based ratchet, forward secrecy) | Planned |
-| 4 | Reliable delivery + minimized server-side metadata logging | Planned |
-| 5 | Presence (online/offline, last seen) | Planned |
-| 6 | Multi-device sync | Planned |
-| 7 | Scaling considerations | Deprioritized |
+| Phase | Scope                                                       | Status        |
+| ----- | ----------------------------------------------------------- | ------------- |
+| 1     | Bare-bones WebSocket send/receive                           | ✅ Done       |
+| 2a    | OTP auth + JWT tokens + contact management                  | ✅ Done       |
+| 2b    | Gate WebSocket endpoint behind auth                         | ✅ Done       |
+| 2c    | Wire frontend to auth endpoints + login UI                  | ✅ Done       |
+| 3     | End-to-end encryption (HKDF-based ratchet, forward secrecy) | Planned       |
+| 4     | Reliable delivery + minimized server-side metadata logging  | Planned       |
+| 5     | Presence (online/offline, last seen)                        | Planned       |
+| 6     | Multi-device sync                                           | Planned       |
+| 7     | Scaling considerations                                      | Deprioritized |
 
 **Near-term to-dos:**
-- Gate WebSocket connections with a valid access token (Phase 2b)
-- Wire the frontend to the new auth endpoints
-- Finalize the cherry-blossom ink-wash SVG asset for the thread background
+
 - Client-side key storage via IndexedDB with non-extractable WebCrypto keys,
   backed by strict CSP headers
 - Replace dev-only OTP echo with a real SMS provider (Twilio, etc.)
 - Optionally replace phone-number identity with username/passphrase-based auth
+- Origin header validation and WebSocket URL escaping on the server-side
+  handshake
+- Persist messages server-side (currently in-memory `messageStore` per tab)
 
 ---
 
@@ -162,8 +216,9 @@ sidebar to select which conversation you're sending to.
   broadcasting is the wrong pattern for a strictly 1-on-1 app.
 - `textContent` (not `innerHTML`) is used throughout `ui.js` to prevent HTML
   injection from peer-supplied message content.
-- Origin header validation and WebSocket URL escaping are cheap fixes
-  identified for the WebSocket handshake — don't need to wait for Phase 2b.
+- The WebSocket `/ws` endpoint is gated behind JWT authentication — the
+  client must send a valid access token as its first message; the server
+  validates it and closes the socket with code `4001` on failure.
 - OTP codes are currently returned in the API response (`otp_dev_only`) for
   development convenience — this field must be removed before production.
 
@@ -173,6 +228,7 @@ sidebar to select which conversation you're sending to.
 
 - **Backend:** Python, FastAPI, WebSockets, SQLAlchemy, Pydantic, python-jose, Uvicorn
 - **Frontend:** HTML, CSS, JavaScript (no framework), Google Fonts
+- **Landing Site:** TanStack Start, React, TypeScript, Tailwind CSS v4, shadcn/ui, Vite, Bun
 - **Security (planned):** Web Crypto API, HKDF ratchet, IndexedDB, CSP
 
 ---
