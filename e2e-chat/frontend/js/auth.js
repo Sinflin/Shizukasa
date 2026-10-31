@@ -4,7 +4,13 @@
 // ─── API base URL ────────────────────────────────────────────
 // Exported so other modules (contacts, future services) can reuse it.
 export function apiBase() {
-  const hostname = location.hostname || "localhost";
+  // When opened via file:// (double-clicking index.html), location.protocol
+  // is "file:" and location.hostname is empty — we can't use those to build
+  // a valid HTTP URL, so fall back to http://localhost:8000.
+  if (location.protocol === "file:" || !location.hostname) {
+    return "http://localhost:8000";
+  }
+  const hostname = location.hostname;
   return `${location.protocol}//${hostname}:8000`;
 }
 

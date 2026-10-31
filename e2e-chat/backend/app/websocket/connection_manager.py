@@ -19,7 +19,7 @@ class ConnectionManager:
             # Close the stale connection from a previous session.
             old = self.active_connections[user_id]
             try:
-                await old.close()
+                await old.close(code=4002) # 4002 = "another session has logged in" No need to send a message, the client will know from the close code.
             except Exception:
                 pass  # already closed — ignore
         # Always store the new socket (whether replacing or new user).

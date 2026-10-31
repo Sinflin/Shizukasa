@@ -48,16 +48,16 @@ export function setConnectionStatus(status) {
     status = status ? "online" : "offline";
   }
 
-  const isOnline = status === "online";
   if (connectionDot) {
-    connectionDot.classList.toggle("online", isOnline);
+    connectionDot.classList.toggle("online", status === "online");
+    connectionDot.classList.toggle("offline", status === "offline");
   }
 
   if (activeStatusEl) {
     if (status === "online") {
       activeStatusEl.textContent = "Online";
     } else if (status === "connecting") {
-      activeStatusEl.textContent = "Connecting...";
+      activeStatusEl.textContent = "Connecting…";
     } else {
       activeStatusEl.textContent = "Offline";
     }
@@ -84,7 +84,7 @@ export function setActiveConversation(userId) {
 }
 
 export function updateSidebarPreview(userId, text, time) {
-  const item = document.querySelector(`.conversation-item[data-user-id="${userId}"]`);
+  const item = findConversationItem(userId);
   if (!item) return;
 
   const previewEl = item.querySelector(".convo-preview");
@@ -112,4 +112,62 @@ export function setSidebarVisibleMobile(visible) {
 
 export function currentTime() {
   return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+// ---------- Contact list rendering ----------
+const contactListEl = document.getElementById("conversation-list");
+const contactsEmptyEl = document.getElementById("contacts-empty");
+
+function findConversationItem(userId) {
+  return (
+    Array.from(document.querySelectorAll(".conversation-item")).find(
+      (item) => item.dataset.userId === userId
+    ) || null
+  );
+}
+
+function refreshContactsEmpty() {
+  if (contactsEmptyEl) {
+    contactsEmptyEl.style.display = contactListEl.children.length ? "none" : "";
+  }
+}
+
+// Adds one sidebar entry (no-op if it exists). The phone number is both the
+// display name and the data-user-id used as the send target.
+export function addConversationItem(userId) {
+  if (findConversationItem(userId)) return;
+
+  const li = document.createElement("li");
+  li.className = "conversation-item";
+  li.dataset.userId = userId;
+
+  const avatar = document.createElement("span");
+  avatar.className = "avatar";
+  avatar.setAttribute("aria-hidden", "true");
+
+  const main = document.createElement("span");
+  main.className = "convo-main";
+
+  const top = document.createElement("span");
+  top.className = "convo-top";
+
+  const name = document.createElement("span");
+  name.className = "convo-name";
+  name.textContent = userId; // textContent, never innerHTML
+
+  const time = document.createElement("span");
+  time.className = "convo-time";
+
+  const preview = document.createElement("span");
+  preview.className = "convo-preview";
+
+  top.append(name, time);
+  main.append(top, preview);
+  li.append(avatar, main);
+  contactListEl.appendChild(li);
+  refreshContactsEmpty();
+}
+
+export function clearConversationList() {
+  contactListEl.replaceChildren();
+  refreshContactsEmpty();
 }

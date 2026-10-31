@@ -10,28 +10,37 @@ export class ChatSocket {
     this.socket = null;
     this.reconnectAttempts = 0;
     this.authenticated = false;
+    this.stopped = false; // set by disconnect(), an auth rejection, or a 4002 close
   }
 
   connect() {
-    const protocol = location.protocol === "https:" ? "wss" : "ws";
-    let host = location.host;
-    if (!host || location.protocol === "file:" || (location.port && location.port !== "8000")) {
-      const hostname = location.hostname || "localhost";
-      host = `${hostname}:8000`;
+    if (this.stopped) return;
+
+    // When opened via file:// (double-clicking index.html) or on a dev
+    // server that isn't port 8000, point the socket at localhost:8000.
+    let protocol;
+    let host;
+    if (location.protocol === "file:" || !location.hostname) {
+      protocol = "ws";
+      host = "localhost:8000";
+    } else {
+      protocol = location.protocol === "https:" ? "wss" : "ws";
+      host = `${location.hostname}:8000`;
     }
 
     if (this.onStatusChange) this.onStatusChange("connecting");
     this.authenticated = false;
 
-    this.socket = new WebSocket(`${protocol}://${host}/ws`);
+    const sock = new WebSocket(`${protocol}://${host}/ws`);
+    this.socket = sock;
 
-    this.socket.onopen = () => {
-      // First message must be the token — server won't accept chat
-      // traffic until this succeeds.
-      this.socket.send(JSON.stringify({ token: this.getAccessToken() }));
+    sock.onopen = () => {
+      sock.send(JSON.stringify({ token: this.getAccessToken() }));
     };
 
-    this.socket.onmessage = (event) => {
+    sock.onmessage = (event) => {
+      if (this.socket !== sock) return;
+
       if (!this.authenticated) {
         let data;
         try {
@@ -41,11 +50,11 @@ export class ChatSocket {
         }
         if (data.error) {
           console.error("[websocket] auth failed:", data.error);
+          this.stopped = true; // never retry with a token the server rejected
+          sock.close();
           if (this.onAuthFailure) this.onAuthFailure(data.error);
-          this.socket.close();
           return;
         }
-        // {"message": "authenticated"} — the handshake succeeded.
         this.authenticated = true;
         this.reconnectAttempts = 0;
         if (this.onStatusChange) this.onStatusChange("online");
@@ -55,12 +64,18 @@ export class ChatSocket {
       this.onMessage(event.data);
     };
 
-    this.socket.onclose = () => {
+    sock.onclose = (event) => {
+      if (this.socket !== sock) return; // a newer socket has taken over
       if (this.onStatusChange) this.onStatusChange("offline");
-      this.scheduleReconnect();
+      if (event.code === 4002) {
+        console.warn("[websocket] signed in from another tab/device — not reconnecting");
+        this.stopped = true;
+        return;
+      }
+      if (!this.stopped) this.scheduleReconnect();
     };
 
-    this.socket.onerror = (err) => {
+    sock.onerror = (err) => {
       console.error("[websocket] error", err);
     };
   }
@@ -71,11 +86,18 @@ export class ChatSocket {
     setTimeout(() => this.connect(), delay);
   }
 
+  disconnect() {
+    this.stopped = true;
+    if (this.socket) this.socket.close();
+  }
+
+  // Returns true if the message was sent, false otherwise.
   send(to, message) {
     if (this.socket && this.socket.readyState === WebSocket.OPEN && this.authenticated) {
       this.socket.send(JSON.stringify({ to, message }));
-    } else {
-      console.warn("[websocket] cannot send — socket not authenticated/open");
+      return true;
     }
+    console.warn("[websocket] cannot send — socket not authenticated/open");
+    return false;
   }
 }

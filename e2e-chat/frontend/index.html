@@ -62,81 +62,20 @@
       <input type="text" id="search-conversations" placeholder="Search conversations…" autocomplete="off">
     </div>
 
-    <ul class="conversation-list" id="conversation-list">
-      <!-- Placeholder entries — replace with a render loop once contacts/auth exist -->
-      <li class="conversation-item active" data-user-id="aarav">
-        <span class="avatar" aria-hidden="true"></span>
-        <span class="convo-main">
-          <span class="convo-top">
-            <span class="convo-name">Aarav</span>
-            <span class="convo-time">16:49</span>
-          </span>
-          <span class="convo-preview">just working on the project</span>
-        </span>
-      </li>
-      <li class="conversation-item" data-user-id="meera">
-        <span class="avatar" aria-hidden="true"></span>
-        <span class="convo-main">
-          <span class="convo-top">
-            <span class="convo-name">Meera</span>
-            <span class="convo-time">12:21</span>
-          </span>
-          <span class="convo-preview">sent a photo</span>
-        </span>
-      </li>
-      <li class="conversation-item" data-user-id="dev">
-        <span class="avatar" aria-hidden="true"></span>
-        <span class="convo-main">
-          <span class="convo-top">
-            <span class="convo-name">Dev</span>
-            <span class="convo-time">Yesterday</span>
-          </span>
-          <span class="convo-preview">hmm makes sense</span>
-        </span>
-      </li>
-      <li class="conversation-item" data-user-id="tanish">
-        <span class="avatar" aria-hidden="true"></span>
-        <span class="convo-main">
-          <span class="convo-top">
-            <span class="convo-name">Tanish</span>
-            <span class="convo-time">Mon</span>
-          </span>
-          <span class="convo-preview">let's catch up soon</span>
-        </span>
-      </li>
-    </ul>
+    <form class="add-contact" id="add-contact-form" autocomplete="off">
+      <input type="tel" id="add-contact-input" placeholder="Add contact by phone number…">
+      <button type="submit" class="add-contact-btn" aria-label="Add contact">+</button>
+    </form>
+    <p class="add-contact-error" id="add-contact-error"></p>
+
+    <p class="contacts-empty" id="contacts-empty">No contacts yet. Add someone by phone number.</p>
+    <ul class="conversation-list" id="conversation-list"></ul>
 
     <div class="sidebar-foot">
       <span class="foot-line">Good conversations, better people.</span>
     </div>
   </aside>
-<!-- ============ LOGIN OVERLAY ============ -->
-<div class="login-overlay" id="login-overlay">
-  <div class="login-card">
-    <div class="brand">
-      <span class="brand-en">Shizukasa</span>
-      <span class="brand-jp">静かな会話</span>
-    </div>
 
-    <form id="phone-form" class="login-form">
-      <label for="phone-input">Phone number</label>
-      <input type="tel" id="phone-input" placeholder="+1 555 555 5555" autocomplete="tel" required>
-      <button type="submit" class="login-btn">Send code</button>
-      <p class="login-error" id="phone-error"></p>
-    </form>
-
-    <form id="otp-form" class="login-form hidden">
-      <label for="otp-input">Enter the 6-digit code</label>
-      <input type="text" id="otp-input" inputmode="numeric" maxlength="6" autocomplete="one-time-code" required>
-      <button type="submit" class="login-btn">Verify</button>
-      <button type="button" class="login-link" id="otp-back-btn">Use a different number</button>
-      <p class="login-error" id="otp-error"></p>
-      <!-- DEV ONLY — shows the OTP since no SMS provider is wired in yet.
-        Delete this element and the code that fills it before shipping. -->
-      <p class="login-dev-hint" id="otp-dev-hint"></p>
-    </form>
-  </div>
-</div>
   <!-- ============ THREAD ============ -->
   <main class="thread-panel">
 
@@ -191,6 +130,36 @@
 
   </main>
 
+</div>
+
+<!-- ============ LOGIN OVERLAY ============ -->
+<!-- Placed outside .app-shell so it doesn't become a CSS-grid child
+     that disrupts the 2-column layout (aside + main). -->
+<div class="login-overlay" id="login-overlay">
+  <div class="login-card">
+    <div class="brand">
+      <span class="brand-en">Shizukasa</span>
+      <span class="brand-jp">静かな会話</span>
+    </div>
+
+    <form id="phone-form" class="login-form">
+      <label for="phone-input">Phone number</label>
+      <input type="tel" id="phone-input" placeholder="+1 555 555 5555" autocomplete="tel" required>
+      <button type="submit" class="login-btn">Send code</button>
+      <p class="login-error" id="phone-error"></p>
+    </form>
+
+    <form id="otp-form" class="login-form hidden">
+      <label for="otp-input">Enter the 6-digit code</label>
+      <input type="text" id="otp-input" inputmode="numeric" maxlength="6" autocomplete="one-time-code" required>
+      <button type="submit" class="login-btn">Verify</button>
+      <button type="button" class="login-link" id="otp-back-btn">Use a different number</button>
+      <p class="login-error" id="otp-error"></p>
+      <!-- DEV ONLY — shows the OTP since no SMS provider is wired in yet.
+        Delete this element and the code that fills it before shipping. -->
+      <p class="login-dev-hint" id="otp-dev-hint"></p>
+    </form>
+  </div>
 </div>
 
 <script type="module" src="js/main.js"></script>

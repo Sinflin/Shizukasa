@@ -25,6 +25,17 @@ presents a login overlay (phone → OTP → chat) and automatically reconnects
 with the stored token on page refresh. The OTP service is currently mocked
 (returns the code directly in the API response) pending a real SMS provider.
 
+### Recent Changes (Frontend Bug-Fix Pass)
+
+| # | File(s) | What changed |
+|---|---------|-------------|
+| 1 | `js/contact.js` | **Deleted** — empty dead file that shadowed the real `contacts.js` |
+| 2 | `index.html` | **Moved `#login-overlay` outside `.app-shell`** — it was a 3rd CSS-grid child in a 2-column layout (`300px 1fr`), causing `<main>` to shift to an implicit column |
+| 3 | `js/auth.js` | **Fixed `apiBase()` for `file://` protocol** — previously built broken URLs like `file:///localhost:8000`; now returns `http://localhost:8000` |
+| 4 | `js/websocket.js` | **Aligned WebSocket host detection** with the same `file://` fix; simplified the protocol/host branching |
+| 5 | `js/ui.js`, `css/style.css` | **Fixed connection-dot state management** — `setConnectionStatus()` now toggles both `.online` and `.offline` classes; added `.dot.offline` CSS rule |
+| 6 | `js/websocket.js`, `js/main.js` | **`send()` returns success/failure** — previously a failed send silently rendered the message in the thread without actually delivering it; now bails out early |
+
 ---
 
 ## Features (planned, per project spec)
@@ -48,6 +59,11 @@ with the stored token on page refresh. The OTP service is currently mocked
 - Exponential-backoff auto-reconnect on the client (skips reconnect loop on
   auth failure to avoid hammering the server)
 - Mobile-responsive layout (collapses to single panel under 760px)
+- Correct `file://` protocol handling — opening `index.html` directly from
+  the filesystem connects to `http://localhost:8000` for REST and
+  `ws://localhost:8000` for WebSocket
+- Send-failure detection — `ChatSocket.send()` returns `false` when the
+  socket is disconnected, preventing ghost messages in the thread
 - OTP-based phone-number authentication (`/auth/request-otp`, `/auth/verify-otp`)
 - JWT access & refresh token flow (`/auth/refresh`)
 - Frontend login overlay with phone-number → OTP code → chat transition
@@ -93,16 +109,19 @@ with the stored token on page refresh. The OTP service is currently mocked
 
 - **Stack:** Vanilla HTML/CSS/JS (no framework)
 - **Structure:**
-  - `frontend/index.html` — shell markup (login overlay + sidebar + thread
-    panel + composer)
+  - `frontend/index.html` — shell markup (sidebar + thread panel + composer);
+    login overlay lives outside the grid shell to avoid layout disruption
   - `frontend/css/style.css` — design tokens, layout, responsive rules
   - `frontend/js/auth.js` — REST calls to `/auth/*`, token storage
-    (`sessionStorage`), `authedFetch()` with silent 401-refresh
+    (`sessionStorage`), `authedFetch()` with silent 401-refresh, `file://`
+    protocol-safe `apiBase()`
   - `frontend/js/main.js` — orchestrator; wires DOM events to the socket and
     auth layers, manages `messageStore`, drives the login flow
+  - `frontend/js/contacts.js` — REST calls to `/contacts/*` using `authedFetch`
   - `frontend/js/ui.js` — pure DOM rendering, no network logic
   - `frontend/js/websocket.js` — `ChatSocket` class: connection lifecycle,
-    token-first handshake, reconnection backoff, auth-failure callback
+    token-first handshake, reconnection backoff, auth-failure callback,
+    `file://`-safe host detection
   - `frontend/assets/` — `Chat-bg.png` (ink-wash background), `branch.svg`,
     `mountains.svg`
 - **Fonts:** `Shippori Mincho` (display) + `Zen Kaku Gothic New` (body)
