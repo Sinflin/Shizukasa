@@ -86,8 +86,11 @@ with the stored token on page refresh. The OTP service is currently mocked
 - **Database:** SQLite via SQLAlchemy (auto-created on first run)
 - **Auth:** phone number + OTP (WhatsApp-style) → JWT (access + refresh tokens)
 - **Structure:**
-  - `app/main.py` — app entrypoint, mounts routers, defines `/ws` endpoint
-    with in-line `_authenticate_socket()` handshake
+  - `app/main.py` — app entrypoint, bootstraps DB tables, enables CORS for
+    file-origin and dev-server clients, mounts the `auth` and `contact` routers,
+    exposes the `/` health check, and defines the `/ws` endpoint with an in-line
+    `_authenticate_socket()` handshake that validates the opening JWT payload
+    and rejects malformed auth messages
   - `app/config.py` — centralised settings via `pydantic-settings`
   - `app/database.py` — SQLAlchemy engine, session factory, `Base`
   - `app/dependencies.py` — `get_current_user` dependency (Bearer token → User)
@@ -238,6 +241,13 @@ bun run dev          # or npm run dev
 - The WebSocket `/ws` endpoint is gated behind JWT authentication — the
   client must send a valid access token as its first message; the server
   validates it and closes the socket with code `4001` on failure.
+- Malformed websocket auth payloads and message frames are rejected with JSON
+  error payloads instead of crashing the connection, while failed auth closes
+  the socket immediately to protect the handshake.
+- Duplicate socket registrations for the same user are cleaned up on disconnect,
+  preventing stale connections from lingering and receiving future messages.
+- CORS is enabled for local file-origin and dev-server access in `app/main.py`;
+  it should be tightened before deploying to production.
 - OTP codes are currently returned in the API response (`otp_dev_only`) for
   development convenience — this field must be removed before production.
 
