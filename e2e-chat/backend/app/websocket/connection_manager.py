@@ -24,14 +24,20 @@ class ConnectionManager:
                 pass  # already closed — ignore
         # Always store the new socket (whether replacing or new user).
         self.active_connections[user_id] = websocket
-    def disconnect(self, user_id: str):
-        # This method is called when a WebSocket connection is closed. It removes the connection from the active connections dictionary.
-        self.active_connections.pop(user_id, None)
+    def disconnect(self, user_id: str, websocket: WebSocket):
+        # Only remove OUR socket. A newer login may already have replaced it.
+        if self.active_connections.get(user_id) is websocket:
+            del self.active_connections[user_id]
 
-    async def send_to_user(self, user_id: str, message: str):
-        # This method sends a message to a specific user identified by user_id. It retrieves the WebSocket connection from the active connections dictionary and sends the message.
-        connection = self.active_connections.get(user_id)
-        if connection:
-            await connection.send_text(message)
+    async def send_to_user(self, user_id: str, message: str) -> bool:
+        ws = self.active_connections.get(user_id)
+        if ws is None:
+            return False
+        try:
+            await ws.send_text(message)
             return True
-        return False # If the user is not connected, it returns False.
+        except Exception:
+            return False  # dead socket: caller keeps the message queued
+
+        #Fuck man it is taking too long to complete this project 
+        #Well i stil finish this

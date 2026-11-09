@@ -1,10 +1,19 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+import asyncio
+import logging
+from contextlib import asynccontextmanager
+from fastapi.concurrency import run_in_threadpool
+from sqlalchemy import text
+
 import json
 from jose import JWTError, jwt
 # WebSocket is a protocol that allows for full-duplex communication between a client and a server. 
 #It is commonly used in real-time applications such as chat applications, online gaming, and collaborative tools.
 from app.database import Base, engine
+from app.database import SessionLocal
+from app.models import message as _message_models
+from app.services import message_queue as mq
 from app.websocket.connection_manager import ConnectionManager
 from app.routers import auth, contact
 from app.services.jwt_handler import decode_token
@@ -15,10 +24,7 @@ from app.services.jwt_handler import decode_token
 Base.metadata.create_all(bind=engine)
 #Base.metadata.create_all(bind=engine) is a method that creates all the tables defined in the SQLAlchemy models in the database specified by the engine.
 
-app = FastAPI(
-    title="E2E Chat Application",
-    description="End to End Chatting Website using WebSocket and FastAPI.",
-)
+log = logging.getLogger("chat")
 
 # Allow the frontend (file:// origin or a dev server) to reach the API.
 # We use allow_credentials=False because auth is done via the
